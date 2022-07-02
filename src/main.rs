@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
 use clap::Parser;
 
@@ -19,15 +19,16 @@ struct Args {
 
 #[derive(Debug)]
 enum Host {
-    Ip(IpAddr),
+    Ip(Ipv4Addr),
     Hostname(String),
 }
 
 impl From<String> for Host {
     fn from(host: String) -> Self {
-        match host.parse::<IpAddr>() {
+        match host.parse::<Ipv4Addr>() {
             Ok(addr) => Host::Ip(addr),
             Err(_) => Host::Hostname(host),
         }
     }
 }
+
