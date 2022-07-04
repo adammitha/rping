@@ -1,6 +1,8 @@
 [package]
 name = "rping"
 version = "0.1.0"
+authors = ["Adam Mitha <adam.mitha@gmail.com>"]
+description = "Send ICMP ECHO requests to network hosts"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

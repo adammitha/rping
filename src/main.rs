@@ -11,7 +11,7 @@ fn main() {
 }
 
 #[derive(Parser, Debug)]
-#[clap(author, version, about)]
+#[clap(version, about, long_about = None)]
 struct Args {
     #[clap(value_parser, help="Host machine to ping. May be an IPv4 address or domain name.")]
     host: String,
