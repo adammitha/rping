@@ -7,14 +7,16 @@ fn main() {
 
     let host: Host = args.host.into();
 
-    println!("Host: {:?}", host);
+    println!("Host: {:?}, Timeout: {:?}s", host, args.timeout);
 }
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
 struct Args {
-    #[clap(value_parser)]
+    #[clap(value_parser, help="Host machine to ping. May be an IPv4 address or domain name.")]
     host: String,
+    #[clap(short, long, default_value="1", help="Timeout interval (seconds)")]
+    timeout: u32,
 }
 
 #[derive(Debug)]
