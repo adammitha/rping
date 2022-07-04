@@ -14,6 +14,7 @@ rping <host>
 
 The ICMP request is encapsulated in an IP packet. The packet consists of a header and data sections:
 
+```
  Offsets       1                2               3               4
   Octet
 +-------+---------------+---------------+---------------+---------------+
@@ -21,6 +22,7 @@ The ICMP request is encapsulated in an IP packet. The packet consists of a heade
 +-------+---------------+---------------+---------------+---------------+
 |   4   |         Rest of Header (varies depending on Type/Code)        |
 +-------+---------------+---------------+---------------+---------------+
+```
 
 The relevant type and code for ICMP `ECHO` requests and replies are:
 `ECHO` Request: Type: 8, Code: 0
