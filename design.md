@@ -15,7 +15,7 @@ rping <host>
 The ICMP request is encapsulated in an IP packet. The packet consists of a header and data sections:
 
 ```
- Offsets       1                2               3               4
+ Offsets       0                1               2               3
   Octet
 +-------+---------------+---------------+---------------+---------------+
 |   0   |      Type     |      Code     |           Checksum            |
