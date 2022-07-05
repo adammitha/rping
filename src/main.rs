@@ -13,9 +13,12 @@ fn main() {
 #[derive(Parser, Debug)]
 #[clap(version, about, long_about = None)]
 struct Args {
-    #[clap(value_parser, help="Host machine to ping. May be an IPv4 address or domain name.")]
+    #[clap(
+        value_parser,
+        help = "Host machine to ping. May be an IPv4 address or domain name."
+    )]
     host: String,
-    #[clap(short, long, default_value="1", help="Timeout interval (seconds)")]
+    #[clap(short, long, default_value = "1", help = "Timeout interval (seconds)")]
     timeout: u32,
 }
 
@@ -33,4 +36,3 @@ impl From<String> for Host {
         }
     }
 }
-
