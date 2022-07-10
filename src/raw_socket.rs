@@ -15,6 +15,12 @@ impl RawSocket {
     }
 }
 
+impl Drop for RawSocket {
+    fn drop(&mut self) {
+        unsafe { libc::close(self.inner) };
+    }
+}
+
 fn check_err(return_code: libc::c_int) -> Result<libc::c_int> {
     if return_code < 0 {
         return Err(Error::last_os_error());
