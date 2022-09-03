@@ -1,17 +1,18 @@
 use std::io::{Error, Result};
-
-use libc::c_int;
+use std::os::unix::io::RawFd;
 
 /// RawSocket is a safe wrapper around a Linux `raw(7)` socket
 pub struct RawSocket {
-    inner: c_int,
+    inner: RawFd,
 }
 
 impl RawSocket {
     pub fn new() -> Result<Self> {
-        let sock_fd =
-            check_err(unsafe { libc::socket(libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP) })?;
-        Ok(Self { inner: sock_fd })
+        Ok(Self {
+            inner: check_err(unsafe {
+                libc::socket(libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP)
+            })?,
+        })
     }
 }
 
