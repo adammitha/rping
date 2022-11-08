@@ -10,7 +10,11 @@ pub struct RawSocket {
 impl RawSocket {
     pub fn with_timeout(timeout: i64) -> Result<Self> {
         unsafe {
-            let raw_socket_fd = libc::socket(libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP);
+            let raw_socket_fd = check_err(libc::socket(
+                libc::AF_INET,
+                libc::SOCK_RAW,
+                libc::IPPROTO_ICMP,
+            ))?;
             let timeout = libc::timeval {
                 tv_sec: timeout,
                 tv_usec: 0,
