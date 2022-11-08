@@ -33,4 +33,10 @@ impl RPing {
             host: resolved_host,
         })
     }
+
+    pub fn start(&self, count: Option<u64>) {
+        for i in 0..count.unwrap_or(u64::MAX) {
+            todo!("Send ICMP request and wait for response");
+        }
+    }
 }
