@@ -9,14 +9,12 @@ use raw_socket::RawSocket;
 
 pub struct RPing {
     socket: RawSocket,
-    timeout: u32,
 }
 
 impl RPing {
-    pub fn new(timeout: u32) -> Result<Self> {
+    pub fn new(timeout: i64) -> Result<Self> {
         Ok(Self {
-            socket: RawSocket::new()?,
-            timeout,
+            socket: RawSocket::with_timeout(timeout)?,
         })
     }
 }
