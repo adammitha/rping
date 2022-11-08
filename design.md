@@ -19,13 +19,13 @@ The ICMP request is encapsulated in an IP packet. The packet consists of a heade
 ### ICMP Message
 ```
 Offset                
-(octet)         0               2                 3             4
+(octet)         0               1                 2             3
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |     Type      |     Code      |          Checksum             |
+    0   |     Type      |     Code      |          Checksum             |
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |           Identifier          |        Sequence Number        |
+    4   |           Identifier          |        Sequence Number        |
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |     Data ...
+    8   |     Data ...
         +-+-+-+-+-
 ```
 
