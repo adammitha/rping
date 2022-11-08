@@ -3,8 +3,7 @@ use clap::Parser;
 
 fn main() {
     let args = Args::parse();
-    println!("Resolving host {}", args.host);
-    let rping = RPing::new(args.timeout, (args.host.clone(), 0u16)).unwrap();
+    let rping = RPing::new((args.host.clone(), 0u16), args.timeout).unwrap();
     println!("Pinging host: {}", rping.host.ip());
 }
 

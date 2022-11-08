@@ -1,11 +1,10 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
 mod icmp;
 mod raw_socket;
 
 use std::io::Result;
-use std::net::SocketAddr;
-use std::net::SocketAddrV4;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
 
 use raw_socket::RawSocket;
 
@@ -15,7 +14,7 @@ pub struct RPing {
 }
 
 impl RPing {
-    pub fn new(timeout: i64, host: impl ToSocketAddrs) -> Result<Self> {
+    pub fn new(host: impl ToSocketAddrs, timeout: i64) -> Result<Self> {
         let resolved_host: SocketAddrV4 = match host
             .to_socket_addrs()?
             .filter(|a| {
