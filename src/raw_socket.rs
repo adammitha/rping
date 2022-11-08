@@ -1,24 +1,23 @@
 use std::io::{Error, Result};
-use std::os::unix::io::RawFd;
+use std::os::unix::prelude::FromRawFd;
+use std::os::unix::prelude::OwnedFd;
 
 /// RawSocket is a safe wrapper around a Linux `raw(7)` socket
 pub struct RawSocket {
-    inner: RawFd,
+    inner: OwnedFd,
 }
 
 impl RawSocket {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            inner: check_err(unsafe {
-                libc::socket(libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP)
-            })?,
+            inner: unsafe {
+                FromRawFd::from_raw_fd(check_err(libc::socket(
+                    libc::AF_INET,
+                    libc::SOCK_RAW,
+                    libc::IPPROTO_ICMP,
+                ))?)
+            },
         })
-    }
-}
-
-impl Drop for RawSocket {
-    fn drop(&mut self) {
-        unsafe { libc::close(self.inner) };
     }
 }
 
