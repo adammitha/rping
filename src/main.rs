@@ -4,7 +4,6 @@ use clap::Parser;
 fn main() {
     let args = Args::parse();
     let rping = RPing::new((args.host.clone(), 0u16), args.timeout).unwrap();
-    println!("Pinging host: {}", rping.host.ip());
     rping.start(args.count);
 }
 

@@ -11,4 +11,5 @@ edition = "2021"
 bytes = "1.2.1"
 clap = { version = "4.0.22", features = ["derive"] }
 libc = "0.2.126"
+num-traits = "0.2.15"
 thiserror = "1.0.37"

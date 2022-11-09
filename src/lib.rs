@@ -5,6 +5,7 @@ mod raw_socket;
 
 use std::io::Result;
 use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
+// use std::time::{Duration, Instant};
 
 use raw_socket::RawSocket;
 
@@ -17,9 +18,7 @@ impl RPing {
     pub fn new(host: impl ToSocketAddrs, timeout: i64) -> Result<Self> {
         let resolved_host: SocketAddrV4 = match host
             .to_socket_addrs()?
-            .filter(|a| {
-                matches!(a, SocketAddr::V4(_))
-            })
+            .filter(|a| matches!(a, SocketAddr::V4(_)))
             .next()
         {
             Some(SocketAddr::V4(addr)) => Ok(addr),
@@ -29,14 +28,19 @@ impl RPing {
             )),
         }?;
         Ok(Self {
-            socket: RawSocket::with_timeout(timeout)?,
+            socket: RawSocket::new(timeout, &resolved_host)?,
             host: resolved_host,
         })
     }
 
     pub fn start(&self, count: Option<u64>) {
-        for i in 0..count.unwrap_or(u64::MAX) {
-            todo!("Send ICMP request and wait for response");
-        }
+        println!("pinging host: {} with count: {:?}", self.host.ip(), count);
+        // for seq_num in 1..=count.unwrap_or(u64::MAX) {
+        //     let start = Instant::now();
+        //     // Send ICMP request and wait for reply
+        //     if let Some(delay) = Duration::from_secs(1).checked_sub(start.elapsed()) {
+        //         std::thread::sleep(delay);
+        //     }
+        // }
     }
 }
