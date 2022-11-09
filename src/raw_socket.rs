@@ -1,6 +1,7 @@
 use std::io::{Error, Result};
 use std::net::SocketAddrV4;
 use std::os::unix::prelude::{AsRawFd, FromRawFd, OwnedFd};
+use std::ptr::addr_of;
 
 /// RawSocket is a safe wrapper around a Linux `raw(7)` socket
 pub struct RawSocket {
@@ -26,7 +27,7 @@ impl RawSocket {
             };
             check_err(libc::connect(
                 raw_socket_fd,
-                &addr as *const _ as *const libc::sockaddr,
+                addr_of!(addr) as *const libc::sockaddr,
                 std::mem::size_of::<libc::sockaddr>() as u32,
             ))?;
 
@@ -38,7 +39,7 @@ impl RawSocket {
                 raw_socket_fd,
                 libc::SOL_SOCKET,
                 libc::SO_RCVTIMEO,
-                &timeout as *const _ as *const libc::c_void,
+                addr_of!(timeout) as *const libc::c_void,
                 std::mem::size_of::<libc::timeval>() as u32,
             ))?;
 
