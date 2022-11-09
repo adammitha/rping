@@ -10,6 +10,7 @@ edition = "2021"
 [dependencies]
 bytes = "1.2.1"
 clap = { version = "4.0.22", features = ["derive"] }
+internet-checksum = "0.2.1"
 libc = "0.2.126"
 num-traits = "0.2.15"
 thiserror = "1.0.37"

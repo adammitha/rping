@@ -58,6 +58,17 @@ impl RawSocket {
             ))
         }
     }
+
+    pub fn recv(&self, buf: &mut [u8]) -> Result<isize> {
+        unsafe {
+            check_err(libc::recv(
+                self.inner.as_raw_fd(),
+                buf as *mut _ as *mut libc::c_void,
+                buf.len(),
+                0,
+            ))
+        }
+    }
 }
 
 fn check_err<T: num_traits::PrimInt>(return_code: T) -> Result<T> {

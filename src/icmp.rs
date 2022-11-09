@@ -22,8 +22,57 @@ pub struct IcmpMessage {
     code: u8,
     checksum: u16,
     identifier: u16,
-    seq_num: u16,
+    pub seq_num: u16,
     data: Option<Vec<u8>>,
+}
+
+/// Wraps a buffer containing an IP datagram and provides convenient helper methods
+/// for accessing the datagram's payload. The format of an IP datagram is specified
+/// in [`RFC 791`]
+/// ```text
+/// Offset
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///    0    |Version|  IHL  |Type of Service|          Total Length         |
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///    4    |         Identification        |Flags|      Fragment Offset    |
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///    8    |  Time to Live |    Protocol   |         Header Checksum       |
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///   12    |                       Source Address                          |
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///   16    |                    Destination Address                        |
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+///   20    |                    Options                    |    Padding    |
+///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+/// ```
+///
+/// [`RFC 791`]: https://datatracker.ietf.org/doc/html/rfc791
+pub struct IpDatagramSlice<'a> {
+    buf: &'a [u8],
+}
+
+impl<'a> IpDatagramSlice<'a> {
+    pub fn new(buf: &'a [u8]) -> Self {
+        let ip = Self { buf };
+        assert_eq!(buf.len(), ip.total_len());
+        ip
+    }
+
+    fn header_len(&self) -> usize {
+        ((self.buf[0] & 0x0F) * 4) as usize
+    }
+
+    fn total_len(&self) -> usize {
+        u16::from_be_bytes(self.buf[2..4].try_into().unwrap()) as usize
+    }
+
+    fn payload_len(&self) -> usize {
+        self.total_len() - self.header_len()
+    }
+
+    pub fn payload(&self) -> &'a [u8] {
+        &self.buf[self.header_len()..]
+    }
 }
 
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -37,7 +86,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl IcmpMessage {
-    const ICMP_HEADER_LEN: usize = 8;
+    pub const ICMP_HEADER_LEN: usize = 8;
 
     pub fn new_request(seq_num: u16, data: Option<&[u8]>) -> Self {
         Self {
@@ -50,18 +99,22 @@ impl IcmpMessage {
         }
     }
 
-    pub fn serialize_packet(&self, mut buf: &mut [u8]) -> Result<()> {
-        if buf.len() < self.serialized_len() {
+    pub fn serialize_packet(&self, buf: &mut [u8]) -> Result<()> {
+        let mut buf_cursor = &mut buf[..];
+        if buf_cursor.len() < self.serialized_len() {
             return Err(Error::BufTooSmall);
         }
-        buf.put_u8(self.msg_type);
-        buf.put_u8(self.code);
-        buf.put_u16(self.checksum);
-        buf.put_u16(self.identifier);
-        buf.put_u16(self.seq_num);
+        buf_cursor.put_u8(self.msg_type);
+        buf_cursor.put_u8(self.code);
+        buf_cursor.put_u16(self.checksum);
+        buf_cursor.put_u16(self.identifier);
+        buf_cursor.put_u16(self.seq_num);
         if let Some(data) = self.data.as_ref() {
-            buf.put(data.as_ref());
+            buf_cursor.put(data.as_ref());
         }
+        let checksum = internet_checksum::checksum(buf);
+        buf[2] = checksum[0];
+        buf[3] = checksum[1];
         Ok(())
     }
 
@@ -81,7 +134,7 @@ impl IcmpMessage {
             identifier: payload[4..6].as_ref().get_u16(),
             seq_num: payload[6..8].as_ref().get_u16(),
             data,
-       })
+        })
     }
 
     fn serialized_len(&self) -> usize {
