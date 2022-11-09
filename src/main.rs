@@ -13,7 +13,7 @@ struct Args {
     /// Host machine to ping. May be an IPv4 address or domain name.
     host: String,
 
-    #[arg(short, long, default_value = "1")]
+    #[arg(short = 'W', long, default_value = "1")]
     /// Timeout interval (seconds)
     timeout: i64,
 

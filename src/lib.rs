@@ -35,16 +35,11 @@ impl RPing {
     }
 
     pub fn start(&self, count: Option<u16>) {
+        println!("Pinging host {}", self.host.ip());
         let mut send_buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
         let mut recv_buf = [0u8; 1500];
 
         for seq_num in 1..=count.unwrap_or(u16::MAX) {
-            println!(
-                "pinging host: {} with seq_num: {:?}",
-                self.host.ip(),
-                seq_num
-            );
-
             // Construct packet
             let req = IcmpMessage::new_request(seq_num, None);
             req.serialize_packet(&mut send_buf).unwrap();
