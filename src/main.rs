@@ -17,7 +17,7 @@ struct Args {
     /// Timeout interval (seconds)
     timeout: i64,
 
-    #[arg(short = 'n', long)]
+    #[arg(short, long)]
     /// Number of ping requests to send
-    count: Option<u64>,
+    count: Option<u16>,
 }
