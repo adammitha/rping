@@ -4,6 +4,7 @@ use std::os::unix::prelude::{AsRawFd, FromRawFd, OwnedFd};
 use std::ptr::addr_of;
 
 /// RawSocket is a safe wrapper around a Linux `raw(7)` socket
+#[derive(Debug)]
 pub struct RawSocket {
     inner: OwnedFd,
 }

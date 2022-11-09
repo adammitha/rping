@@ -1,10 +1,35 @@
-use rping::RPing;
 use clap::Parser;
+use color_eyre::eyre::Result;
+use rping::RPing;
+use tracing::instrument;
 
-fn main() {
+#[instrument]
+fn main() -> Result<()> {
+    color_eyre::install()?;
+    install_tracing();
+
     let args = Args::parse();
-    let rping = RPing::new((args.host.clone(), 0u16), args.timeout).unwrap();
-    rping.start(args.count);
+    let rping = RPing::new((args.host.clone(), 0u16), args.timeout)?;
+    rping.start(args.count)?;
+
+    Ok(())
+}
+
+fn install_tracing() {
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let fmt_layer = fmt::layer().with_target(false);
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("info"))
+        .unwrap();
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .with(ErrorLayer::default())
+        .init();
 }
 
 #[derive(Parser, Debug)]

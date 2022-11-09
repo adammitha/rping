@@ -1,5 +1,7 @@
 use bytes::{Buf, BufMut};
+use color_eyre::eyre::Result;
 use thiserror::Error;
+use tracing::instrument;
 
 /// Represents the contents of an ICMP message as per [`RFC 792`]
 ///
@@ -83,8 +85,6 @@ pub enum Error {
     PayloadTooSmall,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 impl IcmpMessage {
     pub const ICMP_HEADER_LEN: usize = 8;
 
@@ -99,10 +99,11 @@ impl IcmpMessage {
         }
     }
 
+    #[instrument]
     pub fn serialize_packet(&self, buf: &mut [u8]) -> Result<()> {
         let mut buf_cursor = &mut buf[..];
         if buf_cursor.len() < self.serialized_len() {
-            return Err(Error::BufTooSmall);
+            return Err(Error::BufTooSmall)?;
         }
         buf_cursor.put_u8(self.msg_type);
         buf_cursor.put_u8(self.code);
@@ -118,9 +119,10 @@ impl IcmpMessage {
         Ok(())
     }
 
+    #[instrument]
     pub fn deserialize_packet(payload: &[u8]) -> Result<Self> {
         if payload.len() < Self::ICMP_HEADER_LEN {
-            return Err(Error::PayloadTooSmall);
+            return Err(Error::PayloadTooSmall)?;
         }
         let data = if payload.len() > Self::ICMP_HEADER_LEN {
             Some(payload[Self::ICMP_HEADER_LEN..].as_ref().to_vec())
@@ -153,7 +155,7 @@ mod tests {
         msg.serialize_packet(&mut buf).unwrap();
         assert_eq!(buf[0], 0x8);
         assert_eq!(buf[1], 0x0);
-        assert_eq!(&buf[2..4], &[0x00, 0x00]);
+        assert_eq!(&buf[2..4], &[0xf7, 0xfe]);
         assert_eq!(&buf[4..6], &[0x00, 0x00]);
         assert_eq!(&buf[6..8], &[0x00, 0x01]);
     }
@@ -162,7 +164,13 @@ mod tests {
     fn test_serialize_packet_buf_too_small() {
         let msg = IcmpMessage::new_request(1, None);
         let mut buf = [0u8; 4];
-        assert_eq!(msg.serialize_packet(&mut buf), Err(Error::BufTooSmall));
+        assert_eq!(
+            msg.serialize_packet(&mut buf)
+                .unwrap_err()
+                .downcast::<Error>()
+                .unwrap(),
+            Error::BufTooSmall
+        );
     }
 
     #[test]
@@ -177,6 +185,9 @@ mod tests {
     fn test_deserialize_packet_payload_too_small() {
         let payload: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
         let res = IcmpMessage::deserialize_packet(&payload);
-        assert_eq!(res, Err(Error::PayloadTooSmall));
+        assert_eq!(
+            res.unwrap_err().downcast::<Error>().unwrap(),
+            Error::PayloadTooSmall
+        );
     }
 }
