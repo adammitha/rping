@@ -1,8 +1,8 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use clap::Parser;
 use color_eyre::eyre::Result;
 use rping::RPing;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tracing::instrument;
 
 #[instrument]
@@ -12,13 +12,14 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
     let cancelled = Arc::new(AtomicBool::new(false));
-    let rping = RPing::new((args.host.clone(), 0u16), args.timeout, cancelled.clone())?;
+    let mut rping = RPing::new((args.host.clone(), 0u16), args.timeout, cancelled.clone())?;
     ctrlc::set_handler(move || {
         cancelled.store(true, Ordering::Relaxed);
         println!();
         println!("Exiting rping");
     })?;
     rping.start(args.count)?;
+    rping.dump_stats();
 
     Ok(())
 }
