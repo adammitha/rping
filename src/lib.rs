@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use color_eyre::eyre::{Result, WrapErr};
+use color_eyre::eyre::{eyre, Result, WrapErr};
 use icmp::IcmpMessage;
 use raw_socket::RawSocket;
 use tracing::{info, instrument};
@@ -34,10 +34,7 @@ impl RPing {
             .next()
         {
             Some(SocketAddr::V4(addr)) => Ok(addr),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to resolve the host",
-            )),
+            _ => Err(eyre!("Unable to resolve the host")),
         }?;
         Ok(Self {
             socket: RawSocket::new(timeout, &resolved_host)?,
