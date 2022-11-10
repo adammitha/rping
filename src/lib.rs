@@ -5,6 +5,8 @@ mod raw_socket;
 
 use std::fmt::Debug;
 use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use color_eyre::eyre::{Result, WrapErr};
@@ -15,12 +17,13 @@ use tracing::{info, instrument};
 #[derive(Debug)]
 pub struct RPing {
     socket: RawSocket,
-    pub host: SocketAddrV4,
+    host: SocketAddrV4,
+    cancelled: Arc<AtomicBool>,
 }
 
 impl RPing {
     #[instrument]
-    pub fn new<T>(host: T, timeout: i64) -> Result<Self>
+    pub fn new<T>(host: T, timeout: i64, cancelled: Arc<AtomicBool>) -> Result<Self>
     where
         T: ToSocketAddrs + Debug,
     {
@@ -38,7 +41,12 @@ impl RPing {
         Ok(Self {
             socket: RawSocket::new(timeout, &resolved_host)?,
             host: resolved_host,
+            cancelled,
         })
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
     }
 
     #[instrument]
@@ -48,6 +56,11 @@ impl RPing {
         let mut recv_buf = [0u8; 1500];
 
         for seq_num in 1..=count.unwrap_or(u16::MAX) {
+            // Check for cancellation
+            if self.is_cancelled() {
+                break;
+            }
+
             // Construct packet
             let req = IcmpMessage::new_request(seq_num, None);
             req.serialize_packet(&mut send_buf)
@@ -69,8 +82,10 @@ impl RPing {
                 elapsed.as_millis()
             );
 
-            if let Some(delay) = Duration::from_secs(1).checked_sub(elapsed) {
-                std::thread::sleep(delay);
+            if !self.is_cancelled() {
+                if let Some(delay) = Duration::from_secs(1).checked_sub(elapsed) {
+                    std::thread::sleep(delay);
+                }
             }
         }
         Ok(())

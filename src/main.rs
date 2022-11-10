@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use clap::Parser;
 use color_eyre::eyre::Result;
 use rping::RPing;
@@ -9,7 +11,13 @@ fn main() -> Result<()> {
     install_tracing();
 
     let args = Args::parse();
-    let rping = RPing::new((args.host.clone(), 0u16), args.timeout)?;
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let rping = RPing::new((args.host.clone(), 0u16), args.timeout, cancelled.clone())?;
+    ctrlc::set_handler(move || {
+        cancelled.store(true, Ordering::Relaxed);
+        println!();
+        println!("Exiting rping");
+    })?;
     rping.start(args.count)?;
 
     Ok(())
