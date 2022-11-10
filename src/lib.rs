@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 use color_eyre::eyre::{eyre, Result, WrapErr};
 use icmp::IcmpMessage;
 use raw_socket::RawSocket;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct RPing {
@@ -50,7 +50,7 @@ impl RPing {
 
     #[instrument]
     pub fn start(&mut self, count: Option<u16>) -> Result<()> {
-        info!("Pinging host {}", self.host.ip());
+        println!("Pinging host {}", self.host.ip());
         let mut buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
 
         for seq_num in 1..=count.unwrap_or(u16::MAX) {
@@ -64,23 +64,33 @@ impl RPing {
             req.serialize_packet(&mut buf)
                 .wrap_err("Unable to serialize the ICMP message")?;
 
-            // Send ICMP request and wait for reply
+            // Send ICMP request
             let start = Instant::now();
             self.socket.send(&buf)?;
             self.stats.send();
 
-            // TODO: handle timeout better than this
-            let bytes_read = self.socket.recv(&mut buf)?;
+            // Wait for ICMP reply and report stats
+            let bytes_read = match self.socket.recv(&mut buf) {
+                Ok(res) => Ok(res),
+                Err(err) => match err.kind() {
+                    std::io::ErrorKind::WouldBlock => {
+                        println!("Timeout waiting for packet with seq_num {}", seq_num);
+                        continue;
+                    },
+                    _ => Err(err),
+                },
+            }?;
             let elapsed = start.elapsed();
             let icmp_resp = IcmpMessage::deserialize_packet(&buf[..bytes_read as usize])?;
             println!(
-                "Received {bytes_read} bytes from {}: icmp_seq={}, time elapsed={}ms",
+                "Received {bytes_read} bytes from {}: icmp_seq={}, time elapsed={2:.1}ms",
                 self.host.ip(),
                 icmp_resp.seq_num,
-                elapsed.as_millis()
+                elapsed.as_secs_f64() * 1000.
             );
             self.stats.recv(elapsed);
 
+            // Sleep for remainder of interval between sending packets
             if !self.is_cancelled() {
                 if let Some(delay) = Duration::from_secs(1).checked_sub(elapsed) {
                     std::thread::sleep(delay);
@@ -127,12 +137,12 @@ impl Stats {
         (1. - self.num_rcvd as f64 / self.num_sent as f64) * 100.
     }
 
-    fn rtt_min(&self) -> u128 {
-        self.rtts.iter().min().unwrap().as_millis()
+    fn rtt_min(&self) -> f64 {
+        self.rtts.iter().min().unwrap().as_secs_f64() * 1000.
     }
 
-    fn rtt_max(&self) -> u128 {
-        self.rtts.iter().max().unwrap().as_millis()
+    fn rtt_max(&self) -> f64 {
+        self.rtts.iter().max().unwrap().as_secs_f64() * 1000.
     }
 
     fn rtt_mean(&self) -> f64 {
@@ -145,7 +155,7 @@ impl Display for Stats {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         writeln!(
             f,
-            "{} packets transmitted, {} packets received, {}% packet loss, time {:?}ms",
+            "{} packets transmitted, {} packets received, {}% packet loss, time {:?}",
             self.num_sent,
             self.num_rcvd,
             self.packet_loss(),
@@ -153,7 +163,7 @@ impl Display for Stats {
         )?;
         write!(
             f,
-            "rtt min/avg/max = {}/{}/{} ms",
+            "rtt min/avg/max = {0:.3}/{1:.3}/{2:.3} ms",
             self.rtt_min(),
             self.rtt_max(),
             self.rtt_mean()
