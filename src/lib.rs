@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use color_eyre::eyre::{Result, WrapErr};
-use icmp::{IcmpMessage, IpDatagramSlice};
+use icmp::IcmpMessage;
 use raw_socket::RawSocket;
 use tracing::{info, instrument};
 
@@ -52,8 +52,7 @@ impl RPing {
     #[instrument]
     pub fn start(&self, count: Option<u16>) -> Result<()> {
         info!("Pinging host {}", self.host.ip());
-        let mut send_buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
-        let mut recv_buf = [0u8; 1500];
+        let mut buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
 
         for seq_num in 1..=count.unwrap_or(u16::MAX) {
             // Check for cancellation
@@ -63,18 +62,17 @@ impl RPing {
 
             // Construct packet
             let req = IcmpMessage::new_request(seq_num, None);
-            req.serialize_packet(&mut send_buf)
+            req.serialize_packet(&mut buf)
                 .wrap_err("Unable to serialize the ICMP message")?;
 
             // Send ICMP request and wait for reply
             let start = Instant::now();
-            self.socket.send(&send_buf)?;
+            self.socket.send(&buf)?;
 
             // TODO: handle timeout better than this
-            let bytes_read = self.socket.recv(&mut recv_buf)?;
+            let bytes_read = self.socket.recv(&mut buf)?;
             let elapsed = start.elapsed();
-            let ip_resp = IpDatagramSlice::new(&recv_buf[..bytes_read as usize]);
-            let icmp_resp = IcmpMessage::deserialize_packet(ip_resp.payload())?;
+            let icmp_resp = IcmpMessage::deserialize_packet(&buf[..bytes_read as usize])?;
             println!(
                 "Received {bytes_read} bytes from {}: icmp_seq={}, time elapsed={}ms",
                 self.host.ip(),

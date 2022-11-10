@@ -28,55 +28,6 @@ pub struct IcmpMessage {
     data: Option<Vec<u8>>,
 }
 
-/// Wraps a buffer containing an IP datagram and provides convenient helper methods
-/// for accessing the datagram's payload. The format of an IP datagram is specified
-/// in [`RFC 791`]
-/// ```text
-/// Offset
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///    0    |Version|  IHL  |Type of Service|          Total Length         |
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///    4    |         Identification        |Flags|      Fragment Offset    |
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///    8    |  Time to Live |    Protocol   |         Header Checksum       |
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///   12    |                       Source Address                          |
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///   16    |                    Destination Address                        |
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-///   20    |                    Options                    |    Padding    |
-///         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-/// ```
-///
-/// [`RFC 791`]: https://datatracker.ietf.org/doc/html/rfc791
-pub struct IpDatagramSlice<'a> {
-    buf: &'a [u8],
-}
-
-impl<'a> IpDatagramSlice<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        let ip = Self { buf };
-        assert_eq!(buf.len(), ip.total_len());
-        ip
-    }
-
-    fn header_len(&self) -> usize {
-        ((self.buf[0] & 0x0F) * 4) as usize
-    }
-
-    fn total_len(&self) -> usize {
-        u16::from_be_bytes(self.buf[2..4].try_into().unwrap()) as usize
-    }
-
-    fn payload_len(&self) -> usize {
-        self.total_len() - self.header_len()
-    }
-
-    pub fn payload(&self) -> &'a [u8] {
-        &self.buf[self.header_len()..]
-    }
-}
-
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     #[error("the provided buffer is too small to serialize this ICMP message")]

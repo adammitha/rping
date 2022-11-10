@@ -14,7 +14,7 @@ impl RawSocket {
         unsafe {
             let raw_socket_fd = check_err(libc::socket(
                 libc::AF_INET,
-                libc::SOCK_RAW,
+                libc::SOCK_DGRAM,
                 libc::IPPROTO_ICMP,
             ))?;
 
