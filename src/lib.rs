@@ -103,7 +103,7 @@ impl RPing {
     }
 
     pub fn dump_stats(&self) {
-        println!("------------------------------------------------");
+        println!("--- {:?} stats ---", self.host);
         println!("{}", self.stats);
     }
 }
