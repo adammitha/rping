@@ -51,11 +51,11 @@ impl RPing {
     }
 
     #[instrument]
-    pub fn start(&mut self, count: Option<u16>) -> Result<()> {
+    pub fn start(&mut self, count: u16) -> Result<()> {
         println!("Pinging host {}", self.host.ip());
         let mut buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
 
-        for seq_num in 1..=count.unwrap_or(u16::MAX) {
+        for seq_num in 1..=count {
             // Check for cancellation
             if self.is_cancelled() {
                 break;
@@ -93,7 +93,7 @@ impl RPing {
             self.stats.recv(elapsed);
 
             // Sleep for remainder of interval between sending packets
-            if !self.is_cancelled() {
+            if !self.is_cancelled() && seq_num < count {
                 if let Some(delay) = Duration::from_secs(1).checked_sub(elapsed) {
                     std::thread::sleep(delay);
                 }
@@ -103,7 +103,7 @@ impl RPing {
     }
 
     pub fn dump_stats(&self) {
-        println!("--- {:?} stats ---", self.host);
+        println!("--- {:?} stats ---", self.host.ip());
         println!("{}", self.stats);
     }
 }

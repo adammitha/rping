@@ -15,8 +15,6 @@ fn main() -> Result<()> {
     let mut rping = RPing::new((args.host.clone(), 0u16), args.timeout, cancelled.clone())?;
     ctrlc::set_handler(move || {
         cancelled.store(true, Ordering::Relaxed);
-        println!();
-        println!("Exiting rping");
     })?;
     rping.start(args.count)?;
     rping.dump_stats();
@@ -51,7 +49,7 @@ struct Args {
     /// Timeout interval (seconds)
     timeout: i64,
 
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = u16::MAX)]
     /// Number of ping requests to send
-    count: Option<u16>,
+    count: u16,
 }
