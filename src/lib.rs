@@ -6,8 +6,7 @@ mod stats;
 
 use std::fmt::Debug;
 use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use color_eyre::eyre::{eyre, Result, WrapErr};
@@ -20,13 +19,13 @@ use tracing::instrument;
 pub struct RPing {
     socket: RawSocket,
     host: SocketAddrV4,
-    cancelled: Arc<AtomicBool>,
+    canceller: Receiver<()>,
     stats: Stats,
 }
 
 impl RPing {
     #[instrument]
-    pub fn new<T>(host: T, timeout: i64, cancelled: Arc<AtomicBool>) -> Result<Self>
+    pub fn new<T>(host: T, timeout: i64, canceller: Receiver<()>) -> Result<Self>
     where
         T: ToSocketAddrs + Debug,
     {
@@ -41,13 +40,9 @@ impl RPing {
         Ok(Self {
             socket: RawSocket::new(timeout, &resolved_host)?,
             host: resolved_host,
-            cancelled,
+            canceller,
             stats: Stats::new(),
         })
-    }
-
-    fn is_cancelled(&self) -> bool {
-        self.cancelled.load(Ordering::SeqCst)
     }
 
     #[instrument]
@@ -56,11 +51,6 @@ impl RPing {
         let mut buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
 
         for seq_num in 1..=count {
-            // Check for cancellation
-            if self.is_cancelled() {
-                break;
-            }
-
             // Construct packet
             let req = IcmpMessage::new_request(seq_num, None);
             req.serialize_packet(&mut buf)
@@ -93,9 +83,10 @@ impl RPing {
             self.stats.recv(elapsed);
 
             // Sleep for remainder of interval between sending packets
-            if !self.is_cancelled() && seq_num < count {
-                if let Some(delay) = Duration::from_secs(1).checked_sub(elapsed) {
-                    std::thread::sleep(delay);
+            if seq_num < count {
+                let delay = Duration::from_secs(1).checked_sub(elapsed).unwrap_or(Duration::from_secs(0));
+                if let Ok(_) = self.canceller.recv_timeout(delay) {
+                    break;
                 }
             }
         }

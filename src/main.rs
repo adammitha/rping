@@ -1,21 +1,21 @@
 use clap::Parser;
 use color_eyre::eyre::Result;
 use rping::RPing;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::mpsc;
 use tracing::instrument;
 
 #[instrument]
 fn main() -> Result<()> {
     color_eyre::install()?;
     install_tracing();
+    let (send, recv) = mpsc::channel::<()>();
+    ctrlc::set_handler(move || {
+        println!();
+        send.send(()).ok();
+    })?;
 
     let args = Args::parse();
-    let cancelled = Arc::new(AtomicBool::new(false));
-    let mut rping = RPing::new((args.host.clone(), 0u16), args.timeout, cancelled.clone())?;
-    ctrlc::set_handler(move || {
-        cancelled.store(true, Ordering::Relaxed);
-    })?;
+    let mut rping = RPing::new((args.host.clone(), 0u16), args.timeout, recv)?;
     rping.start(args.count)?;
     rping.dump_stats();
 
