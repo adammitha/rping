@@ -1,7 +1,9 @@
+use nix::poll::{PollFd, PollFlags, poll};
 use std::io::{Error, Result};
 use std::net::SocketAddrV4;
 use std::os::unix::prelude::{AsRawFd, FromRawFd, OwnedFd};
 use std::ptr::addr_of;
+use std::time::Duration;
 
 /// RawSocket is a safe wrapper around a Linux `raw(7)` socket
 #[derive(Debug)]
@@ -14,7 +16,7 @@ impl RawSocket {
         unsafe {
             let raw_socket_fd = check_err(libc::socket(
                 libc::AF_INET,
-                libc::SOCK_DGRAM,
+                libc::SOCK_NONBLOCK | libc::SOCK_DGRAM,
                 libc::IPPROTO_ICMP,
             ))?;
 
@@ -30,18 +32,6 @@ impl RawSocket {
                 raw_socket_fd,
                 addr_of!(addr) as *const libc::sockaddr,
                 std::mem::size_of::<libc::sockaddr>() as u32,
-            ))?;
-
-            let timeout = libc::timeval {
-                tv_sec: timeout,
-                tv_usec: 0,
-            };
-            check_err(libc::setsockopt(
-                raw_socket_fd,
-                libc::SOL_SOCKET,
-                libc::SO_RCVTIMEO,
-                addr_of!(timeout) as *const libc::c_void,
-                std::mem::size_of::<libc::timeval>() as u32,
             ))?;
 
             Ok(Self {
@@ -70,6 +60,11 @@ impl RawSocket {
                 0,
             ))
         }
+    }
+
+    pub fn poll(&self, timeout: Duration) -> Result<libc::c_int> {
+        let poll_fd = PollFd::new(self.inner.as_raw_fd(), PollFlags::POLLIN);
+        Ok(poll(&mut [poll_fd], timeout.as_millis().try_into().unwrap())?)
     }
 }
 

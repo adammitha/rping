@@ -1,5 +1,6 @@
 use bytes::{Buf, BufMut};
 use color_eyre::eyre::Result;
+use std::time::Instant;
 use thiserror::Error;
 
 /// Represents the contents of an ICMP message as per [`RFC 792`]
@@ -23,8 +24,9 @@ pub struct IcmpMessage {
     code: u8,
     checksum: u16,
     identifier: u16,
-    pub seq_num: u16,
+    seq_num: u16,
     data: Option<Vec<u8>>,
+    timestamp: Instant,
 }
 
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -46,6 +48,7 @@ impl IcmpMessage {
             identifier: 0,
             seq_num,
             data: data.map(|d| d.to_owned()),
+            timestamp: Instant::now(),
         }
     }
 
@@ -84,10 +87,19 @@ impl IcmpMessage {
             identifier: payload[4..6].as_ref().get_u16(),
             seq_num: payload[6..8].as_ref().get_u16(),
             data,
+            timestamp: Instant::now(),
         })
     }
 
-    fn serialized_len(&self) -> usize {
+    pub fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+
+    pub fn seq_num(&self) -> u16 {
+        self.seq_num
+    }
+
+    pub fn serialized_len(&self) -> usize {
         Self::ICMP_HEADER_LEN + self.data.as_ref().map_or(0, |d| d.len())
     }
 }

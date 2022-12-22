@@ -4,6 +4,7 @@ mod icmp;
 mod raw_socket;
 mod stats;
 
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
 use std::sync::Arc;
@@ -14,7 +15,6 @@ use color_eyre::eyre::{eyre, Result, WrapErr};
 use icmp::IcmpMessage;
 use raw_socket::RawSocket;
 use stats::Stats;
-use tracing::debug;
 
 #[derive(Debug)]
 pub struct RPing {
@@ -48,57 +48,62 @@ impl RPing {
     pub fn start(&mut self, count: u16) -> Result<()> {
         println!("Pinging host {}", self.host.ip());
         let mut buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
+        let mut req_map: HashMap<u16, IcmpMessage> = HashMap::new();
 
         for seq_num in 1..=count {
             if self.cancelled() {
-                debug!("Cancelled... exiting main loop");
                 break;
             }
             // Construct packet
             let req = IcmpMessage::new_request(seq_num, None);
             req.serialize_packet(&mut buf)
                 .wrap_err("Unable to serialize the ICMP message")?;
+            req_map.insert(seq_num, req);
 
             // Send ICMP request
-            let start = Instant::now();
             self.socket.send(&buf)?;
             self.stats.send();
 
             // Wait for ICMP reply and report stats
-            let bytes_read = match self.socket.recv(&mut buf) {
-                Ok(res) => Ok(res),
-                Err(err) => match err.kind() {
-                    std::io::ErrorKind::WouldBlock => {
-                        println!("Timeout waiting for packet with seq_num {}", seq_num);
-                        continue;
-                    },
-                    _ => Err(err),
-                },
-            }?;
-            let elapsed = start.elapsed();
-            let icmp_resp = IcmpMessage::deserialize_packet(&buf[..bytes_read as usize])?;
-            println!(
-                "Received {bytes_read} bytes from {}: icmp_seq={}, time elapsed={2:.1}ms",
-                self.host.ip(),
-                icmp_resp.seq_num,
-                elapsed.as_secs_f64() * 1000.
-            );
-            self.stats.recv(elapsed);
-
-            // Sleep for remainder of interval between sending packets
-            if seq_num < count {
-                let delay = Duration::from_secs(1).checked_sub(elapsed).unwrap_or(Duration::from_secs(0));
-                if let Ok(_) = self.canceller.recv_timeout(delay) {
-                    break;
+            let mut time_remaining = Some(Duration::from_secs(1));
+            while let Some(t) = time_remaining {
+                let start = Instant::now();
+                match self.socket.poll(t)  {
+                    Ok(0) => break, // timeout
+                    Ok(_) => {
+                        let bytes_read = self.socket.recv(&mut buf)?;
+                        let icmp_resp = IcmpMessage::deserialize_packet(&buf[..bytes_read as usize])?;
+                        if let Some(req) = req_map.remove(&icmp_resp.seq_num()) {
+                            let elapsed = req.timestamp().elapsed();
+                            self.stats.recv(elapsed);
+                            println!(
+                                "Received {} bytes from {}: icmp_seq={}, time elapsed={3:.1}ms",
+                                bytes_read,
+                                self.host.ip(),
+                                icmp_resp.seq_num(),
+                                elapsed.as_secs_f64() * 1000.
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::Interrupted {
+                            self.cancelled.store(true, Ordering::Relaxed);
+                        }
+                        break;
+                    }
                 }
+                time_remaining = t.checked_sub(start.elapsed());
+            }
+            if let Some(_) = req_map.get(&seq_num) {
+                println!("Timed out waiting for packet with icmp sequence number {}", seq_num);
             }
         }
         Ok(())
     }
 
     pub fn dump_stats(&self) {
-        println!("--- {:?} stats ---", self.host.ip());
-        println!("{}", self.stats);
+        println!("\n--- {:?} stats ---", self.host.ip());
+        print!("{}", self.stats);
     }
 
     fn cancelled(&self) -> bool {
