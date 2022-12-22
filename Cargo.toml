@@ -14,6 +14,7 @@ color-eyre = "0.6.2"
 ctrlc = "3.2.3"
 internet-checksum = "0.2.1"
 libc = "0.2.126"
+nix = { version = "0.25.0", features = ["poll"] }
 num-traits = "0.2.15"
 thiserror = "1.0.37"
 tracing = "0.1.37"
