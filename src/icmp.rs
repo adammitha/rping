@@ -1,7 +1,6 @@
 use bytes::{Buf, BufMut};
 use color_eyre::eyre::Result;
 use thiserror::Error;
-use tracing::instrument;
 
 /// Represents the contents of an ICMP message as per [`RFC 792`]
 ///
@@ -50,7 +49,6 @@ impl IcmpMessage {
         }
     }
 
-    #[instrument]
     pub fn serialize_packet(&self, buf: &mut [u8]) -> Result<()> {
         let mut buf_cursor = &mut buf[..];
         if buf_cursor.len() < self.serialized_len() {
@@ -70,7 +68,6 @@ impl IcmpMessage {
         Ok(())
     }
 
-    #[instrument]
     pub fn deserialize_packet(payload: &[u8]) -> Result<Self> {
         if payload.len() < Self::ICMP_HEADER_LEN {
             return Err(Error::PayloadTooSmall)?;

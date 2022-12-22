@@ -1,21 +1,21 @@
 use clap::Parser;
 use color_eyre::eyre::Result;
 use rping::RPing;
-use std::sync::mpsc;
-use tracing::instrument;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-#[instrument]
 fn main() -> Result<()> {
     color_eyre::install()?;
     install_tracing();
-    let (send, recv) = mpsc::channel::<()>();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let c = cancelled.clone();
     ctrlc::set_handler(move || {
+        c.store(true, Ordering::Relaxed);
         println!();
-        send.send(()).ok();
     })?;
 
     let args = Args::parse();
-    let mut rping = RPing::new((args.host.clone(), 0u16), args.timeout, recv)?;
+    let mut rping = RPing::new((args.host.clone(), 0u16), args.timeout, cancelled)?;
     rping.start(args.count)?;
     rping.dump_stats();
 
@@ -27,7 +27,7 @@ fn install_tracing() {
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
-    let fmt_layer = fmt::layer().with_target(false);
+    let fmt_layer = fmt::layer().with_target(false).compact();
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new("info"))
         .unwrap();

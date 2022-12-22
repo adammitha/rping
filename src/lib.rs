@@ -6,26 +6,26 @@ mod stats;
 
 use std::fmt::Debug;
 use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
-use std::sync::mpsc::Receiver;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use color_eyre::eyre::{eyre, Result, WrapErr};
 use icmp::IcmpMessage;
 use raw_socket::RawSocket;
 use stats::Stats;
-use tracing::instrument;
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct RPing {
     socket: RawSocket,
     host: SocketAddrV4,
-    canceller: Receiver<()>,
+    cancelled: Arc<AtomicBool>,
     stats: Stats,
 }
 
 impl RPing {
-    #[instrument]
-    pub fn new<T>(host: T, timeout: i64, canceller: Receiver<()>) -> Result<Self>
+    pub fn new<T>(host: T, timeout: i64, cancelled: Arc<AtomicBool>) -> Result<Self>
     where
         T: ToSocketAddrs + Debug,
     {
@@ -40,17 +40,20 @@ impl RPing {
         Ok(Self {
             socket: RawSocket::new(timeout, &resolved_host)?,
             host: resolved_host,
-            canceller,
+            cancelled,
             stats: Stats::new(),
         })
     }
 
-    #[instrument]
     pub fn start(&mut self, count: u16) -> Result<()> {
         println!("Pinging host {}", self.host.ip());
         let mut buf = [0u8; IcmpMessage::ICMP_HEADER_LEN];
 
         for seq_num in 1..=count {
+            if self.cancelled() {
+                debug!("Cancelled... exiting main loop");
+                break;
+            }
             // Construct packet
             let req = IcmpMessage::new_request(seq_num, None);
             req.serialize_packet(&mut buf)
@@ -96,5 +99,9 @@ impl RPing {
     pub fn dump_stats(&self) {
         println!("--- {:?} stats ---", self.host.ip());
         println!("{}", self.stats);
+    }
+
+    fn cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
     }
 }
