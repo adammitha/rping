@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
 mod icmp;
 mod raw_socket;
 mod stats;
@@ -22,10 +20,11 @@ pub struct RPing {
     host: SocketAddrV4,
     cancelled: Arc<AtomicBool>,
     stats: Stats,
+    timeout: u64,
 }
 
 impl RPing {
-    pub fn new<T>(host: T, timeout: i64, cancelled: Arc<AtomicBool>) -> Result<Self>
+    pub fn new<T>(host: T, timeout: u64, cancelled: Arc<AtomicBool>) -> Result<Self>
     where
         T: ToSocketAddrs + Debug,
     {
@@ -38,10 +37,11 @@ impl RPing {
             _ => Err(eyre!("Unable to resolve the host")),
         }?;
         Ok(Self {
-            socket: RawSocket::new(timeout, &resolved_host)?,
+            socket: RawSocket::new(&resolved_host)?,
             host: resolved_host,
             cancelled,
             stats: Stats::new(),
+            timeout,
         })
     }
 
@@ -65,7 +65,7 @@ impl RPing {
             self.stats.send();
 
             // Wait for ICMP reply and report stats
-            let mut time_remaining = Some(Duration::from_secs(1));
+            let mut time_remaining = Some(Duration::from_secs(self.timeout));
             while let Some(t) = time_remaining {
                 let start = Instant::now();
                 match self.socket.poll(t)  {

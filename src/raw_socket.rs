@@ -12,7 +12,7 @@ pub struct RawSocket {
 }
 
 impl RawSocket {
-    pub fn new(timeout: i64, host: &SocketAddrV4) -> Result<Self> {
+    pub fn new(host: &SocketAddrV4) -> Result<Self> {
         unsafe {
             let raw_socket_fd = check_err(libc::socket(
                 libc::AF_INET,

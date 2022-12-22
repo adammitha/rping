@@ -47,7 +47,7 @@ struct Args {
 
     #[arg(short = 'W', long, default_value = "1")]
     /// Timeout interval (seconds)
-    timeout: i64,
+    timeout: u64,
 
     #[arg(short, long, default_value_t = u16::MAX)]
     /// Number of ping requests to send
